@@ -13,18 +13,20 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Psr\Log\LoggerInterface;
 
 #[Route('/api', name: 'app_task')]
 final class TaskController extends AbstractController
 {
     private $serializer;
     private $validator;
+    private $logger;
 
-
-    public function __construct(SerializerInterface $serializer, ValidatorInterface $validator)
+    public function __construct(SerializerInterface $serializer, ValidatorInterface $validator, LoggerInterface $logger)
     {
         $this->serializer = $serializer;
         $this->validator = $validator;
+        $this->logger    = $logger;
     }
 
     #[Route('', name: 'welcome')]
@@ -64,6 +66,15 @@ final class TaskController extends AbstractController
             
             $errors = $this->validator->validate($task);
             if (count($errors) > 0) {
+
+                $errorMessages = [];
+                foreach ($errors as $error) {
+                    $errorMessages[] = $error->getPropertyPath() . ': ' . $error->getMessage();
+                }                
+                $this->logger->warning('Validation failed for task creation', [
+                    'errors' => $errorMessages,
+                    'input_data' => $request->getContent()
+                ]);
                 return $this->json([
                     'success' => false,
                     'errors' => (string) $errors
@@ -84,6 +95,10 @@ final class TaskController extends AbstractController
             ], Response::HTTP_CREATED, [], ['groups' => ['task_read']]);
 
         } catch (\Exception $e) {
+            $this->logger->warning("There is an error creating task", [
+                "error" => $e->getMessage(),
+                "input_data" => $request->getContent()
+            ]);
             return $this->json([
                 'success' => false,
                 'error' => 'Failed to create task: ' . $e->getMessage()
@@ -111,6 +126,14 @@ final class TaskController extends AbstractController
 
             $errors = $this->validator->validate($task);
             if (count($errors) > 0) {
+                $errorMessages = [];
+                foreach ($errors as $error) {
+                    $errorMessages[] = $error->getPropertyPath() . ': ' . $error->getMessage();
+                }                
+                $this->logger->warning('Validation failed for task update', [
+                    'errors' => $errorMessages,
+                    'input_data' => $request->getContent()
+                ]);                
                 return $this->json([
                     'success' => false,
                     'errors' => (string) $errors
@@ -126,6 +149,10 @@ final class TaskController extends AbstractController
             ], Response::HTTP_OK, [], ['groups' => ['task_read']]);
 
         } catch (\Exception $e) {
+            $this->logger->warning('There is an error updating task', [
+                "error" => $e->getMessage(),
+                'input_data' => $request->getContent()
+            ]);             
             return $this->json([
                 'success' => false,
                 'error' => 'Failed to update task: ' . $e->getMessage()
@@ -146,6 +173,10 @@ final class TaskController extends AbstractController
             ], Response::HTTP_OK);
 
         } catch (\Exception $e) {
+            $this->logger->warning('There is an error deleting task', [
+                "error" => $e->getMessage(),
+                'data to delete' => $task
+            ]);              
             return $this->json([
                 'success' => false,
                 'error' => 'Failed to delete task: ' . $e->getMessage()

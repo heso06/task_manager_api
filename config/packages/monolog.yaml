@@ -1,0 +1,26 @@
+monolog:
+    channels: ['api']
+    
+    handlers:
+        # Логирование в файл для API
+        api:
+            type: stream
+            path: "%kernel.logs_dir%/api.%kernel.environment%.log"
+            channels: ['api']
+            level: debug
+            formatter: monolog.formatter.line
+            max_files: 30
+
+        # Логирование ошибок в отдельный файл
+        error_file:
+            type: stream
+            path: "%kernel.logs_dir%/error.%kernel.environment%.log"
+            level: error
+            channels: ['!api']
+
+        # Все логи в основной файл
+        main:
+            type: stream
+            path: "%kernel.logs_dir%/%kernel.environment%.log"
+            level: debug
+            channels: ['!event', '!api', '!doctrine']
