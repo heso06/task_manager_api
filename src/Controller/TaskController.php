@@ -38,16 +38,45 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/tasks', name: 'task_all', methods: ['GET'])]
-    public function all_tasks(TaskRepository $taskRepository): JsonResponse
+    public function all_tasks(Request $request, TaskRepository $taskRepository): JsonResponse
     {
-        $tasks = $taskRepository->findAll();
+        $status = $request->query->get('status');
+        $page   = (int) $request->query->get('page', 1);
+        $limit   = (int) $request->query->get('limit', 10);
         
+        if ($page < 1) {
+            $page = 1;
+        }
+        if ($limit < 1 || $limit > 100) {
+            $limit = 10;
+        }
+
+        $tasks = $taskRepository->findWithFilters($status, $page, $limit);
+        $total = $this->getTotalCount($taskRepository, $status);
         return $this->json([
             'success' => true,
             'data' => $tasks,
-            'total' => count($tasks)
+            'pagination' => [
+                'page' => $page,
+                'record_per_page' => $limit,
+                'total_tasks' => $total
+            ],
+
         ], Response::HTTP_OK, [], ['groups' => ['task_read']]);
     }
+
+    private function getTotalCount(TaskRepository $taskRepository, ?string $status): int
+    {
+        $qb = $taskRepository->createQueryBuilder('t')
+            ->select('COUNT(t.id)');
+
+        if ($status !== null && $status !== '') {
+            $qb->where('t.status = :status')
+               ->setParameter('status', $status);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }    
 
     #[Route('/tasks/{id}', name: 'task_show', methods: ['GET'])]
     public function show(Task $task): JsonResponse

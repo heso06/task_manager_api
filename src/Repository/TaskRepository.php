@@ -15,21 +15,23 @@ class TaskRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Task::class);
     }
+    
+    public function findWithFilters(?string $status = null, int $page = 1, int $limit = 10): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->orderBy('t.createdAt', 'DESC');
 
-    //    /**
-    //     * @return Task[] Returns an array of Task objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('t')
-    //            ->andWhere('t.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('t.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+        if ($status !== null && $status !== '') {
+            $qb->andWhere('t.status = :status')
+               ->setParameter('status', $status);
+        }
+
+
+        $qb->setFirstResult(($page - 1) * $limit)
+           ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
 
     //    public function findOneBySomeField($value): ?Task
     //    {
